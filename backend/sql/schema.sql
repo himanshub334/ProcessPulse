@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS teams(id SERIAL PRIMARY KEY,name TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS sprints(id SERIAL PRIMARY KEY,name TEXT NOT NULL,start_date DATE NOT NULL,end_date DATE NOT NULL,team_id INT REFERENCES teams(id),velocity NUMERIC DEFAULT 0);
+CREATE TABLE IF NOT EXISTS issues(id TEXT PRIMARY KEY,title TEXT NOT NULL,type TEXT NOT NULL,status TEXT NOT NULL,story_points NUMERIC DEFAULT 0,team_id INT REFERENCES teams(id),sprint_id INT REFERENCES sprints(id),owner TEXT,created_at TIMESTAMPTZ DEFAULT now(),resolved_at TIMESTAMPTZ);
+CREATE TABLE IF NOT EXISTS dependencies(id SERIAL PRIMARY KEY,blocking_issue_id TEXT REFERENCES issues(id) ON DELETE CASCADE,blocked_issue_id TEXT REFERENCES issues(id) ON DELETE CASCADE,UNIQUE(blocking_issue_id,blocked_issue_id));
+CREATE TABLE IF NOT EXISTS milestones(id SERIAL PRIMARY KEY,name TEXT NOT NULL,target_date DATE NOT NULL,issue_ids TEXT[] DEFAULT '{}');
+CREATE TABLE IF NOT EXISTS communications(id SERIAL PRIMARY KEY,kind TEXT NOT NULL,note TEXT NOT NULL,decision TEXT,action_item TEXT,owner TEXT,due_date DATE,created_at TIMESTAMPTZ DEFAULT now());
+CREATE TABLE IF NOT EXISTS deployments(id SERIAL PRIMARY KEY,environment TEXT NOT NULL,deployed_at TIMESTAMPTZ NOT NULL,issue_id TEXT);

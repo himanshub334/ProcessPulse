@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sprintsync
+      POSTGRES_USER: sprintsync
+      POSTGRES_PASSWORD: sprintsync
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  backend:
+    build: ./backend
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgres://sprintsync:sprintsync@postgres:5432/sprintsync
+    ports: ["4000:4000"]
+    depends_on: [postgres]
+
+  frontend:
+    build: ./frontend
+    ports: ["5173:5173"]
+    depends_on: [backend]
+
+volumes:
+  pgdata:

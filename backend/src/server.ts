@@ -1,0 +1,14 @@
+import express from 'express';import cors from 'cors';import dotenv from 'dotenv';import {query,seed} from './db';import {metrics,rag} from './services/metrics';import {syncJira} from './services/jira';import {digest} from './services/digest';
+dotenv.config();const app=express();app.use(cors());app.use(express.json());
+app.get('/health',async(_,res)=>{try{await query('SELECT 1');res.json({status:'ok',service:'sprintsync'})}catch{res.status(503).json({status:'down'})}});
+app.get('/api/issues',async(req,res)=>{const sprint=req.query.sprint;const r=await query(`SELECT i.*,t.name team FROM issues i LEFT JOIN teams t ON t.id=i.team_id WHERE ($1::int IS NULL OR i.sprint_id=$1) ORDER BY i.status,i.id`,[sprint||null]);res.json(r.rows)});
+app.get('/api/dependencies',async(_,res)=>res.json((await query(`SELECT d.*,a.title blocking_title,b.title blocked_title FROM dependencies d JOIN issues a ON a.id=d.blocking_issue_id JOIN issues b ON b.id=d.blocked_issue_id`)).rows));
+app.get('/api/milestones',async(_,res)=>res.json((await query(`SELECT * FROM milestones ORDER BY target_date`)).rows));
+app.get('/api/communications',async(_,res)=>res.json((await query(`SELECT * FROM communications ORDER BY created_at DESC`)).rows));
+app.post('/api/communications',async(req,res)=>{const {kind,note,decision,action_item,owner,due_date}=req.body;const r=await query(`INSERT INTO communications(kind,note,decision,action_item,owner,due_date) VALUES($1,$2,$3,$4,$5,$6) RETURNING *`,[kind,note,decision,action_item,owner,due_date]);res.status(201).json(r.rows[0])});
+app.get('/api/metrics',async(_,res)=>res.json(await metrics()));
+app.get('/api/sprints/:id/health',async(req,res)=>{const r=await query(`SELECT COALESCE(SUM(story_points) FILTER(WHERE status<>'Done'),0)::float remaining, GREATEST(1,(SELECT end_date-CURRENT_DATE FROM sprints WHERE id=$1))::float days FROM issues WHERE sprint_id=$1`,[req.params.id]);const x=r.rows[0];res.json({...x,rag:rag(x.remaining,x.days)})});
+app.post('/api/jira/sync',async(_,res)=>{try{res.json(await syncJira())}catch(e:any){res.status(502).json({error:e.message})}});
+app.get('/api/digest',async(_,res)=>res.json(await digest()));
+app.get('/api/reports/digest.csv',async(_,res)=>{const rows=await digest();res.type('text/csv').send(['id,title,owner,risk',...rows.map((x:any)=>[x.id,JSON.stringify(x.title),JSON.stringify(x.owner||''),x.risk].join(','))].join('\n'))});
+const port=Number(process.env.PORT||4000);seed().then(()=>app.listen(port,()=>console.log(`SprintSync API on ${port}`))).catch(e=>{console.error(e);process.exit(1)});

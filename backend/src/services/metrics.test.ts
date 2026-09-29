@@ -1,0 +1,1 @@
+import {describe,it,expect} from 'vitest';import {rag} from './metrics';describe('RAG',()=>{it('classifies schedule pressure',()=>{expect(rag(5,5)).toBe('GREEN');expect(rag(10,5)).toBe('AMBER');expect(rag(20,5)).toBe('RED')})})

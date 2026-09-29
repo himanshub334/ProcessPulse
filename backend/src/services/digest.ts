@@ -1,0 +1,2 @@
+import {query} from '../db';
+export async function digest(){const rows=(await query(`SELECT i.id,i.title,i.status,i.owner,i.story_points,s.end_date FROM issues i JOIN sprints s ON s.id=i.sprint_id WHERE i.status <> 'Done' ORDER BY s.end_date`)).rows;return rows.map((x:any)=>({...x,risk:x.status==='Blocked'?'DELAYED':new Date(x.end_date)<new Date()?'DELAYED':Number(x.story_points)>=8?'AT_RISK':'ON_TRACK'}))}
